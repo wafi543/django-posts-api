@@ -1,8 +1,10 @@
 from django.shortcuts import render
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (
     LoginSerializer, UserSerializer
 )
+from .permissions import IsAccessTokenValid
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -29,7 +31,15 @@ class LoginView(APIView):
             )
 
         login(request, user)
-        return Response(UserSerializer(user).data)
+        
+        # Generate tokens
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'user': UserSerializer(user).data,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        })
 
 
 class LogoutView(APIView):
@@ -67,3 +77,13 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+
+class TokenVerifyView(APIView):
+    permission_classes = [IsAccessTokenValid]
+
+    def get(self, request):
+        return Response(
+            {'detail': 'Token is valid'},
+            status=status.HTTP_200_OK,
+        )
